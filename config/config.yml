@@ -1,0 +1,6 @@
+env: "local"
+storage_path: "/home/denis/images"
+
+grpc:
+  port: 44044
+  timeout: 5s

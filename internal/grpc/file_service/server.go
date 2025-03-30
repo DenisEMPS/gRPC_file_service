@@ -5,22 +5,29 @@ import (
 	"errors"
 
 	file_service "github.com/DenisEMPS/proto-repo/gen/go/file-service"
-	"github.com/denisEMPS/gRPC_file_service/internal/service"
+	"github.com/denisEMPS/gRPC_file_service/internal/domain"
+	image_service "github.com/denisEMPS/gRPC_file_service/internal/service"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+type ImageService interface {
+	UploadImage(ctx context.Context, imageData []byte, imageName string) error
+	DownloadImage(ctx context.Context, imageName string) ([]byte, error)
+	ListImage(ctx context.Context) ([]domain.ImageInfo, error)
+}
+
 type ServerAPI struct {
 	file_service.UnimplementedFileServer
-	service      *service.Service
+	service      ImageService
 	semaUpload   chan struct{}
 	semaDownload chan struct{}
 	semaList     chan struct{}
 }
 
-func NewServerApi(service *service.Service) *ServerAPI {
+func NewServerApi(service ImageService) *ServerAPI {
 	return &ServerAPI{
 		service:      service,
 		semaUpload:   make(chan struct{}, 10),
@@ -29,7 +36,7 @@ func NewServerApi(service *service.Service) *ServerAPI {
 	}
 }
 
-func RegisterServer(gRPC *grpc.Server, service *service.Service) {
+func RegisterServer(gRPC *grpc.Server, service ImageService) {
 	file_service.RegisterFileServer(gRPC, NewServerApi(service))
 }
 
@@ -49,9 +56,9 @@ func (a *ServerAPI) UploadImage(ctx context.Context, req *file_service.UploadIma
 		return nil, status.Error(codes.InvalidArgument, "empty name field")
 	}
 
-	err := a.service.Image.UploadImage(ctx, req.ImageData, req.ImageName)
+	err := a.service.UploadImage(ctx, req.ImageData, req.ImageName)
 	if err != nil {
-		if errors.Is(err, service.ErrImageAlreadyExists) {
+		if errors.Is(err, image_service.ErrImageAlreadyExists) {
 			return nil, status.Error(codes.AlreadyExists, "image already exists")
 		}
 		return nil, status.Error(codes.Internal, "internal error")
@@ -74,9 +81,9 @@ func (a *ServerAPI) DownloadImage(ctx context.Context, req *file_service.Downloa
 		return nil, status.Error(codes.InvalidArgument, "empty name field")
 	}
 
-	imageData, err := a.service.Image.DownloadImage(context.Background(), req.ImageName)
+	imageData, err := a.service.DownloadImage(context.Background(), req.ImageName)
 	if err != nil {
-		if errors.Is(err, service.ErrImageIsNotExists) {
+		if errors.Is(err, image_service.ErrImageIsNotExists) {
 			return nil, status.Error(codes.NotFound, "image not found")
 		}
 		return nil, status.Error(codes.Internal, "internal error")

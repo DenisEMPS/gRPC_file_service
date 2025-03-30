@@ -1,4 +1,4 @@
-package repository
+package imagefs
 
 import (
 	"context"
@@ -19,20 +19,20 @@ var (
 	ErrImageIsNotExists   = errors.New("images does not exists")
 )
 
-type ImageFileSystem struct {
+type ImageFS struct {
 	storageDir string
 	logger     *slog.Logger
 }
 
-func NewImageFileSystem(storageDir string, logger *slog.Logger) *ImageFileSystem {
+func New(storageDir string, logger *slog.Logger) *ImageFS {
 	if err := os.Mkdir(storageDir, 0755); err != nil {
 		log.Fatal("failed to create image directory: ", err.Error())
 	}
 
-	return &ImageFileSystem{storageDir: storageDir, logger: logger}
+	return &ImageFS{storageDir: storageDir, logger: logger}
 }
 
-func (r *ImageFileSystem) SaveImage(ctx context.Context, imageData []byte, imageName string) error {
+func (r *ImageFS) SaveImage(ctx context.Context, imageData []byte, imageName string) error {
 	const op = "image_file_system.SaveImage"
 
 	imagePath := filepath.Join(r.storageDir, imageName)
@@ -49,7 +49,7 @@ func (r *ImageFileSystem) SaveImage(ctx context.Context, imageData []byte, image
 	return nil
 }
 
-func (r *ImageFileSystem) GetImage(ctx context.Context, imageName string) ([]byte, error) {
+func (r *ImageFS) GetImage(ctx context.Context, imageName string) ([]byte, error) {
 	const op = "image_file_system.GetImage"
 
 	imagePath := filepath.Join(r.storageDir, imageName)
@@ -66,7 +66,7 @@ func (r *ImageFileSystem) GetImage(ctx context.Context, imageName string) ([]byt
 	return imageData, nil
 }
 
-func (r *ImageFileSystem) ListImages(ctx context.Context) ([]domain.ImageInfo, error) {
+func (r *ImageFS) ListImages(ctx context.Context) ([]domain.ImageInfo, error) {
 	const op = "image_file_system.ListImages"
 
 	var imagesInfo []domain.ImageInfo
@@ -100,7 +100,7 @@ func (r *ImageFileSystem) ListImages(ctx context.Context) ([]domain.ImageInfo, e
 	return imagesInfo, nil
 }
 
-func (r *ImageFileSystem) GetFileCreationTime(filePath string) (time.Time, error) {
+func (r *ImageFS) GetFileCreationTime(filePath string) (time.Time, error) {
 	var statx unix.Statx_t
 	err := unix.Statx(unix.AT_FDCWD, filePath, 0, unix.STATX_BTIME, &statx)
 	if err != nil {

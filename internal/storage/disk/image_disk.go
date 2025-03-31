@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/denisEMPS/gRPC_file_service/internal/domain"
@@ -22,6 +23,7 @@ var (
 type ImageDisk struct {
 	storageDir string
 	logger     *slog.Logger
+	mu         sync.RWMutex
 }
 
 func NewImage(storageDir string, logger *slog.Logger) *ImageDisk {
@@ -37,26 +39,27 @@ func NewImage(storageDir string, logger *slog.Logger) *ImageDisk {
 func (r *ImageDisk) Save(ctx context.Context, imageData []byte, imageName string) error {
 	const op = "image_file_system.SaveImage"
 
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	imagePath := filepath.Join(r.storageDir, imageName)
 
-	file, err := os.OpenFile(imagePath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
-	if err != nil {
-		if os.IsExist(err) {
-			return fmt.Errorf("%s: %w", op, ErrImageAlreadyExists)
-		}
-		return fmt.Errorf("%s: %w", op, err)
+	if _, err := os.Stat(imagePath); !os.IsNotExist(err) {
+		return fmt.Errorf("%s: %w", op, ErrImageAlreadyExists)
 	}
-	defer file.Close()
 
-	if n, err := file.Write(imageData); err != nil || n == 0 {
+	err := os.WriteFile(imagePath, imageData, 0644)
+	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
 	return nil
 }
-
 func (r *ImageDisk) Get(ctx context.Context, imageName string) ([]byte, error) {
 	const op = "image_file_system.GetImage"
+
+	r.mu.RLock()
+	defer r.mu.Unlock()
 
 	imagePath := filepath.Join(r.storageDir, imageName)
 
@@ -74,6 +77,9 @@ func (r *ImageDisk) Get(ctx context.Context, imageName string) ([]byte, error) {
 
 func (r *ImageDisk) List(ctx context.Context) ([]domain.ImageInfo, error) {
 	const op = "image_file_system.ListImages"
+
+	r.mu.RLock()
+	defer r.mu.Unlock()
 
 	var imagesInfo []domain.ImageInfo
 

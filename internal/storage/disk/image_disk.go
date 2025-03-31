@@ -1,4 +1,4 @@
-package imagefs
+package disk
 
 import (
 	"context"
@@ -19,29 +19,36 @@ var (
 	ErrImageIsNotExists   = errors.New("images does not exists")
 )
 
-type ImageFS struct {
+type ImageDisk struct {
 	storageDir string
 	logger     *slog.Logger
 }
 
-func New(storageDir string, logger *slog.Logger) *ImageFS {
-	if err := os.Mkdir(storageDir, 0755); err != nil {
-		log.Fatal("failed to create image directory: ", err.Error())
+func NewImage(storageDir string, logger *slog.Logger) *ImageDisk {
+	if _, err := os.Stat(storageDir); os.IsNotExist(err) {
+		if err := os.Mkdir(storageDir, 0755); err != nil {
+			log.Fatal("failed to create image directory: ", err.Error())
+		}
 	}
 
-	return &ImageFS{storageDir: storageDir, logger: logger}
+	return &ImageDisk{storageDir: storageDir, logger: logger}
 }
 
-func (r *ImageFS) SaveImage(ctx context.Context, imageData []byte, imageName string) error {
+func (r *ImageDisk) Save(ctx context.Context, imageData []byte, imageName string) error {
 	const op = "image_file_system.SaveImage"
 
 	imagePath := filepath.Join(r.storageDir, imageName)
 
-	if _, err := os.Stat(imagePath); !os.IsNotExist(err) {
-		return fmt.Errorf("%s: %w", op, ErrImageAlreadyExists)
+	file, err := os.OpenFile(imagePath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+	if err != nil {
+		if os.IsExist(err) {
+			return fmt.Errorf("%s: %w", op, ErrImageAlreadyExists)
+		}
+		return fmt.Errorf("%s: %w", op, err)
 	}
+	defer file.Close()
 
-	err := os.WriteFile(imagePath, imageData, 0644)
+	_, err = file.Write(imageData)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
@@ -49,7 +56,7 @@ func (r *ImageFS) SaveImage(ctx context.Context, imageData []byte, imageName str
 	return nil
 }
 
-func (r *ImageFS) GetImage(ctx context.Context, imageName string) ([]byte, error) {
+func (r *ImageDisk) Get(ctx context.Context, imageName string) ([]byte, error) {
 	const op = "image_file_system.GetImage"
 
 	imagePath := filepath.Join(r.storageDir, imageName)
@@ -66,7 +73,7 @@ func (r *ImageFS) GetImage(ctx context.Context, imageName string) ([]byte, error
 	return imageData, nil
 }
 
-func (r *ImageFS) ListImages(ctx context.Context) ([]domain.ImageInfo, error) {
+func (r *ImageDisk) List(ctx context.Context) ([]domain.ImageInfo, error) {
 	const op = "image_file_system.ListImages"
 
 	var imagesInfo []domain.ImageInfo
@@ -100,7 +107,7 @@ func (r *ImageFS) ListImages(ctx context.Context) ([]domain.ImageInfo, error) {
 	return imagesInfo, nil
 }
 
-func (r *ImageFS) GetFileCreationTime(filePath string) (time.Time, error) {
+func (r *ImageDisk) GetFileCreationTime(filePath string) (time.Time, error) {
 	var statx unix.Statx_t
 	err := unix.Statx(unix.AT_FDCWD, filePath, 0, unix.STATX_BTIME, &statx)
 	if err != nil {

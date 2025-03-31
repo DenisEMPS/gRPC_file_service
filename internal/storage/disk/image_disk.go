@@ -48,8 +48,7 @@ func (r *ImageDisk) Save(ctx context.Context, imageData []byte, imageName string
 	}
 	defer file.Close()
 
-	_, err = file.Write(imageData)
-	if err != nil {
+	if n, err := file.Write(imageData); err != nil || n == 0 {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 

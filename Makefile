@@ -1,4 +1,9 @@
-.PHONY run
+CONFIG_PATH=./config/config.yml
+
+.PHONY: run
 
 run:
-	go run cmd/main.go
+	CONFIG_PATH=${CONFIG_PATH} go run cmd/file-service/main.go
+
+build:
+	go build cmd/file-service/main.go

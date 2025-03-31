@@ -5,8 +5,7 @@ import (
 	"log/slog"
 	"net"
 
-	filerpc "file-service/internal/file_service/filerpc"
-
+	filerpc "github.com/denisEMPS/gRPC_file_service/internal/grpc/file-service"
 	"google.golang.org/grpc"
 )
 

@@ -5,8 +5,9 @@ import (
 	"errors"
 
 	file_service "github.com/DenisEMPS/proto-repo/gen/go/file-service"
+
 	"github.com/denisEMPS/gRPC_file_service/internal/domain"
-	image_service "github.com/denisEMPS/gRPC_file_service/internal/service"
+	"github.com/denisEMPS/gRPC_file_service/internal/service/image"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -27,9 +28,9 @@ type ServerAPI struct {
 	semaList     chan struct{}
 }
 
-func NewServerApi(service ImageService) *ServerAPI {
+func NewServerApi(imageService ImageService) *ServerAPI {
 	return &ServerAPI{
-		service:      service,
+		service:      imageService,
 		semaUpload:   make(chan struct{}, 10),
 		semaDownload: make(chan struct{}, 10),
 		semaList:     make(chan struct{}, 100),
@@ -58,14 +59,14 @@ func (a *ServerAPI) UploadImage(ctx context.Context, req *file_service.UploadIma
 
 	err := a.service.UploadImage(ctx, req.ImageData, req.ImageName)
 	if err != nil {
-		if errors.Is(err, image_service.ErrImageAlreadyExists) {
+		if errors.Is(err, image.ErrImageAlreadyExists) {
 			return nil, status.Error(codes.AlreadyExists, "image already exists")
 		}
 		return nil, status.Error(codes.Internal, "internal error")
 	}
 
 	return &file_service.UploadImageResponse{
-		Message: "Success",
+		Message: "success",
 	}, nil
 }
 
@@ -83,7 +84,7 @@ func (a *ServerAPI) DownloadImage(ctx context.Context, req *file_service.Downloa
 
 	imageData, err := a.service.DownloadImage(context.Background(), req.ImageName)
 	if err != nil {
-		if errors.Is(err, image_service.ErrImageIsNotExists) {
+		if errors.Is(err, image.ErrImageIsNotExists) {
 			return nil, status.Error(codes.NotFound, "image not found")
 		}
 		return nil, status.Error(codes.Internal, "internal error")

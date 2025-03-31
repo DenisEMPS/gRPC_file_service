@@ -88,30 +88,33 @@ func (r *ImageDisk) List(ctx context.Context) ([]domain.ImageInfo, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	err := filepath.Walk(r.storageDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() || info.Name()[0] == '.' {
-			return nil
-		}
-
-		createTime, err := r.GetFileCreationTime(path)
-		if err != nil {
-			return err
-		}
-		imagesInfo = append(imagesInfo, domain.ImageInfo{
-			Name:      info.Name(),
-			CreatedAt: createTime,
-			UpdatedAt: info.ModTime(),
-		})
-
-		return nil
-	})
-
+	files, err := os.ReadDir(r.storageDir)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: failed to read directory %s: %w", op, r.storageDir, err)
+	}
+
+	for _, file := range files {
+		filePath := filepath.Join(r.storageDir, file.Name())
+
+		if file.IsDir() || file.Name()[0] == '.' {
+			continue
+		}
+
+		fileInfo, err := file.Info()
+		if err != nil {
+			return nil, fmt.Errorf("%s: failed to get file info for %s: %w", op, file.Name(), err)
+		}
+
+		createTime, err := r.GetFileCreationTime(filePath)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", op, err)
+		}
+
+		imagesInfo = append(imagesInfo, domain.ImageInfo{
+			Name:      file.Name(),
+			CreatedAt: createTime,
+			UpdatedAt: fileInfo.ModTime(),
+		})
 	}
 
 	return imagesInfo, nil

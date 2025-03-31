@@ -39,29 +39,34 @@ func NewImage(storageDir string, logger *slog.Logger) *ImageDisk {
 func (r *ImageDisk) Save(ctx context.Context, imageData []byte, imageName string) error {
 	const op = "image_file_system.SaveImage"
 
+	imagePath := filepath.Join(r.storageDir, imageName)
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	imagePath := filepath.Join(r.storageDir, imageName)
-
-	if _, err := os.Stat(imagePath); !os.IsNotExist(err) {
-		return fmt.Errorf("%s: %w", op, ErrImageAlreadyExists)
-	}
-
-	err := os.WriteFile(imagePath, imageData, 0644)
+	file, err := os.OpenFile(imagePath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
 	if err != nil {
+		if os.IsExist(err) {
+			return fmt.Errorf("%s: %w", op, ErrImageAlreadyExists)
+		}
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	defer file.Close()
+
+	if n, err := file.Write(imageData); err != nil || n == 0 {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
 	return nil
 }
+
 func (r *ImageDisk) Get(ctx context.Context, imageName string) ([]byte, error) {
 	const op = "image_file_system.GetImage"
 
+	imagePath := filepath.Join(r.storageDir, imageName)
+
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-
-	imagePath := filepath.Join(r.storageDir, imageName)
 
 	if _, err := os.Stat(imagePath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("%s: %w", op, ErrImageIsNotExists)
@@ -78,10 +83,10 @@ func (r *ImageDisk) Get(ctx context.Context, imageName string) ([]byte, error) {
 func (r *ImageDisk) List(ctx context.Context) ([]domain.ImageInfo, error) {
 	const op = "image_file_system.ListImages"
 
+	var imagesInfo []domain.ImageInfo
+
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-
-	var imagesInfo []domain.ImageInfo
 
 	err := filepath.Walk(r.storageDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {

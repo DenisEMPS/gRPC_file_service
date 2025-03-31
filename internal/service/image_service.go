@@ -1,4 +1,4 @@
-package service
+package image_service
 
 import (
 	"context"
@@ -6,8 +6,14 @@ import (
 	"log/slog"
 
 	"github.com/denisEMPS/gRPC_file_service/internal/domain"
-	"github.com/denisEMPS/gRPC_file_service/internal/repository"
+	imagefs "github.com/denisEMPS/gRPC_file_service/internal/repository"
 )
+
+type ImageStorage interface {
+	SaveImage(ctx context.Context, imageData []byte, imageName string) error
+	GetImage(ctx context.Context, imageName string) ([]byte, error)
+	ListImages(ctx context.Context) ([]domain.ImageInfo, error)
+}
 
 var (
 	ErrImageAlreadyExists = errors.New("image already exists")
@@ -15,11 +21,11 @@ var (
 )
 
 type ImageService struct {
-	repo repository.Image
+	repo ImageStorage
 	log  *slog.Logger
 }
 
-func NewImageService(repo repository.Image, log *slog.Logger) *ImageService {
+func New(repo ImageStorage, log *slog.Logger) *ImageService {
 	return &ImageService{repo: repo, log: log}
 }
 
@@ -33,7 +39,7 @@ func (s *ImageService) UploadImage(ctx context.Context, imageData []byte, imageN
 
 	err := s.repo.SaveImage(ctx, imageData, imageName)
 	if err != nil {
-		if errors.Is(err, repository.ErrImageAlreadyExists) {
+		if errors.Is(err, imagefs.ErrImageAlreadyExists) {
 			log.Warn("failed to upload image", slog.String("error", err.Error()))
 			return ErrImageAlreadyExists
 		}
@@ -56,7 +62,7 @@ func (s *ImageService) DownloadImage(ctx context.Context, imageName string) ([]b
 
 	imageData, err := s.repo.GetImage(ctx, imageName)
 	if err != nil {
-		if errors.Is(err, repository.ErrImageIsNotExists) {
+		if errors.Is(err, imagefs.ErrImageIsNotExists) {
 			log.Warn("failed to download image", slog.String("error", err.Error()))
 			return nil, ErrImageIsNotExists
 		}

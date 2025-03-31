@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"net"
 
-	filerpc "github.com/denisEMPS/gRPC_file_service/internal/grpc/file-rpc"
-	"github.com/denisEMPS/gRPC_file_service/internal/service"
+	filerpc "file-service/internal/file_service/filerpc"
+
 	"google.golang.org/grpc"
 )
 
@@ -16,7 +16,7 @@ type App struct {
 	port       int
 }
 
-func New(log *slog.Logger, port int, service *service.Service) *App {
+func New(log *slog.Logger, port int, service filerpc.ImageService) *App {
 	gRPCServer := grpc.NewServer()
 
 	filerpc.RegisterServer(gRPCServer, service)

@@ -4,8 +4,8 @@ import (
 	"log/slog"
 
 	grpcapp "github.com/denisEMPS/gRPC_file_service/internal/app/grpc"
-	"github.com/denisEMPS/gRPC_file_service/internal/repository"
-	"github.com/denisEMPS/gRPC_file_service/internal/service"
+	imagefs "github.com/denisEMPS/gRPC_file_service/internal/repository"
+	image "github.com/denisEMPS/gRPC_file_service/internal/service"
 )
 
 type App struct {
@@ -13,10 +13,10 @@ type App struct {
 }
 
 func New(log *slog.Logger, grpcPort int, storageDir string) *App {
-	repo := repository.New(storageDir, log)
-	service := service.New(repo, log)
+	imagefs := imagefs.New(storageDir, log)
+	imageservice := image.New(imagefs, log)
 
-	grpcApp := grpcapp.New(log, grpcPort, service)
+	grpcApp := grpcapp.New(log, grpcPort, imageservice)
 
 	return &App{
 		GRPCServer: grpcApp,

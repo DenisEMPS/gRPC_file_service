@@ -59,7 +59,7 @@ func (r *ImageDisk) Get(ctx context.Context, imageName string) ([]byte, error) {
 	const op = "image_file_system.GetImage"
 
 	r.mu.RLock()
-	defer r.mu.Unlock()
+	defer r.mu.RUnlock()
 
 	imagePath := filepath.Join(r.storageDir, imageName)
 
@@ -79,7 +79,7 @@ func (r *ImageDisk) List(ctx context.Context) ([]domain.ImageInfo, error) {
 	const op = "image_file_system.ListImages"
 
 	r.mu.RLock()
-	defer r.mu.Unlock()
+	defer r.mu.RUnlock()
 
 	var imagesInfo []domain.ImageInfo
 

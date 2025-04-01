@@ -82,7 +82,7 @@ func (a *ServerAPI) DownloadImage(ctx context.Context, req *file_service.Downloa
 		return nil, status.Error(codes.InvalidArgument, "empty name field")
 	}
 
-	imageData, err := a.service.DownloadImage(context.Background(), req.ImageName)
+	imageData, err := a.service.DownloadImage(ctx, req.ImageName)
 	if err != nil {
 		if errors.Is(err, image.ErrImageIsNotExists) {
 			return nil, status.Error(codes.NotFound, "image not found")
@@ -103,7 +103,7 @@ func (a *ServerAPI) ListImage(ctx context.Context, req *file_service.ListImageRe
 		return nil, status.Error(codes.ResourceExhausted, "too many list requests, please try again later")
 	}
 
-	imagesInfo, err := a.service.ListImage(context.Background())
+	imagesInfo, err := a.service.ListImage(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Internal, "internal error")
 	}
